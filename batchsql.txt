@@ -1,0 +1,40 @@
+//TGJPSBSQ JOB (0376,ADS3),' SCHARNBERG',CLASS=B,                               
+//             MSGCLASS=X,NOTIFY=&SYSUID                                        
+/*JOBPARM ROOM=ADS3,LINES=999                                                   
+//*                                                                             
+//RUN   EXEC DB2ASQL2                                                           
+//SYSIN DD *                                                                    
+ SELECT *                                                                       
+   FROM CXQM.CO_STATE_ASGN_MSTR                                                 
+   WHERE LOCATION_CODE = '110003'                                               
+     AND (                                                                      
+           ( FUNCTION_CODE = 'DR'                                               
+             AND (                                                              
+                  (STATE_CODE IN ('04','05','06','07')                          
+                 )                                                              
+           )                                                                    
+           OR (                                                                 
+                FUNCTION_CODE = 'NP' AND (STATE_CODE = '11')                    
+              )                                                                 
+           OR (                                                                 
+                FUNCTION_CODE = 'PR'                                            
+                AND (                                                           
+                      (STATE_CODE IN ('01','02','03','04','05','06'             
+                                      '07','08','10',' ')                       
+                    )                                                           
+              )                                                                 
+           OR (                                                                 
+                FUNCTION_CODE = 'RT'                                            
+                AND (                                                           
+                      (STATE_CODE IN ('02','04','05','07','10','21')            
+                    )                                                           
+              )                                                                 
+           OR (                                                                 
+                FUNCTION_CODE = 'SH'                                            
+                AND (                                                           
+                      (STATE_CODE IN ('10', '13', '16', '19')                   
+                    )                                                           
+              )                                                                 
+         )                                                                      
+     ORDER BY LOCATION_CODE, FUNCTION_CODE, STATE_CODE, RULE_NUMBER             
+     ;                                                                          

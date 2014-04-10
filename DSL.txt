@@ -1,0 +1,10 @@
+/* REXX 9/27/01 J SCHARNBERG - INVOKES DSLIST  */                               
+ARG  HLQ                                                                        
+IF HLQ = '' THEN                                                                
+   HLQ = 'DEVTST.JPS.*'                                                         
+IF HLQ = 'VN' THEN                                                              
+   HLQ = 'VNJPS.*'                                                              
+/**/                                                                            
+   "ISPEXEC SELECT PGM(ISRDSLST) PARM(DSL &HLQ)                                 
+      SUSPEND SCRNAME(DSLIST)"                                                  
+EXIT(0)                                                                         

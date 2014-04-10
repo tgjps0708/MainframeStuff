@@ -1,0 +1,244 @@
+//TGMJKEML JOB (0371,0000),'ART CRUZ EXT 4934 ',                                
+//             CLASS=B,MSGCLASS=X,MSGLEVEL=(1,1)                                
+//DELETE    EXEC PGM=IEFBR14                                                    
+//FILE01    DD DSN=TGTEST.TGMJK.DATA.HTML,                                      
+//             DISP=(MOD,DELETE),UNIT=DISK,SPACE=(TRK,0)                        
+//SASDB2    EXEC SASDB2P,OPTIONS='PAGESIZE=60,LINESIZE=165'                     
+//WORK      DD UNIT=SYSDA,SPACE=(CYL,(1000,1000))                               
+//WORK2     DD UNIT=SYSDA,SPACE=(CYL,(1000,1000))                               
+//SYSIN    DD  *                                                                
+                                                                                
+    /** .LIB(EMAILDA) E-mail blast to active DAAR borrowers **/                 
+    /**  To capture only contacts in last 30 days:              **/             
+    /**  Subtract 30 days from current date --                  **/             
+    /**  AND (A.SEQUENCE_NUMBER > '2007-04-10-17.00.00.000000') **/             
+    /**  AND (A.DATE_TIME       > '2007-04-10-17.00.00.000000') **/             
+                                                                                
+OPTIONS DB2SSID=DSNP;                                                           
+OPTIONS NOCENTER;                                                               
+                                                                                
+PROC FORMAT ;                                                                   
+ VALUE $PHNST                                                                   
+  'D'=' DNT CL'                                                                 
+  'N'=' NATLA'                                                                  
+  'P'=' NONPB'                                                                  
+  'V'=' VALID'                                                                  
+  'X'=' INVLD' ;                                                                
+                                                                                
+*ROC SQL INOBS=3000   LOOPS=1500;                                               
+PROC SQL ;                                                                      
+CREATE TABLE SKIPS AS                                                           
+SELECT * FROM CONNECTION TO DB2                                                 
+     (SELECT A.LOCATION_CODE                     AS LOCATN                      
+            ,A.CASE_NUM                                                         
+            ,A.FUNCTION_STATE                    AS STATE                       
+            ,A.STATE_ENTRY_DATE                  AS ENTRY_DT                    
+            ,A.WORKLIST_USER_ID                  AS TG_USER                     
+            ,C.SSN                               AS SSN                         
+          /*,C.BIRTH_DATE                        AS DOB                         
+            ,C.FIRST_NAME                                                       
+            ,C.MIDDLE_INITIAL                    AS MI                          
+            ,C.LAST_NAME                                   */                   
+            ,SUBSTR(CHAR(C.DEMOG_NAME),1,25)     AS BORR_NAME                   
+            ,E.PHONE_AVAIL_1                     AS PH_1                        
+            ,E.PHONE_TYPE_1                      AS PH_TYP1                     
+            ,SUBSTR(CHAR(E.PHONE_NUMBER_1),4,7)  AS HM_PHNBR                    
+            ,SUBSTR(CHAR(E.PHONE_NUMBER_1),1,10) AS HM_PHNBR1                   
+            ,E.PHONE_AVAIL_2                     AS PH_2                        
+            ,E.PHONE_TYPE_2                      AS PH_TYP2                     
+            ,SUBSTR(CHAR(E.PHONE_NUMBER_2),4,7)  AS WK_PHNBR                    
+            ,SUBSTR(CHAR(E.PHONE_NUMBER_2),1,10) AS WK_PHNBR2                   
+            ,E.PHONE_AVAIL_3                     AS PH_3                        
+            ,E.PHONE_EFFECT_DT_1                 AS HM_PHDTE                    
+          /*,E.ADDRESS_1                         AS ADDR1                       
+            ,E.ADDRESS_2                         AS ADDR2                       
+            ,E.CITY                              AS CITY                        
+            ,E.STATE                             AS ST                          
+            ,SUBSTR(CHAR(E.ZIP),1,9)             AS ZIP    */                   
+            ,E.INVALID_ADDR_IND                  AS ADDR_STAT                   
+            ,SUBSTR(E.EMAIL_ADDRESS,1,40)        AS EMAIL                       
+          /*,E.EMAIL_ADDRESS                               */                   
+            ,B.CASE_DUE_DT                       AS DUE_DATE                    
+            ,F.HOLD_REASON                                                      
+            ,F.CASE_NUM                                                         
+                                                                                
+      FROM  CACS.CO_CASE_STATE_POOL  A                                          
+           ,CACS.CO_CASE_MASTER      B                                          
+           ,CACS.CO_DEBTOR           C                                          
+           ,CACS.CO_DEBTOR_ADDRESS   E                                          
+           ,CACS.CO_CASE_DEBT_LINK   F                                          
+                                                                                
+      WHERE  (A.LOCATION_CODE = '000001')                                       
+         AND (A.CASE_NUM  > '000000000000000001')                               
+      /* AND (A.FUNCTION_STATE = 'FC01')                                        
+         AND (A.FUNC_ENTRY_DATE  > '2006-04-30') */                             
+         AND (A.FUNCTION_STATE IN ('FC01','FC02','FC07','FC08','DS01','EN01',   
+              'FC05','FC09','FC10','FC11','DS02','DS03'))                       
+         AND (B.LOCATION_CODE = '000001')                                       
+         AND (B.CASE_NUM  > '000000000000000001')                               
+         AND (A.LOCATION_CODE = B.LOCATION_CODE)                                
+         AND (A.CASE_NUM = B.CASE_NUM)                                          
+         AND (C.DEBTOR_ID > '000000000000000001')                               
+         AND (A.CASE_NUM = C.DEBTOR_ID)                                         
+         AND (E.DEBTOR_ID > '000000000000000001')                               
+         AND (C.DEBTOR_ID = E.DEBTOR_ID)                                        
+         AND (A.CASE_NUM = F.CASE_NUM)                                          
+         AND (F.HOLD_REASON NOT IN ('DI','DE','BK','RC'))                       
+         AND (E.DEBT_TYPE    = '   ')                                           
+         AND (E.ADDR_TYPE    = '205')                                           
+         AND (E.DEMOG_STATUS = 'C')                                             
+         AND (E.ADDR_COUNT > 0 )                                                
+         AND ( (E.DEBTR_ADDR_SOURCE = 'BO' AND                                  
+               (E.BEGIN_DATE < CURRENT_DATE - 30 DAYS) ) OR                     
+               (E.DEBTR_ADDR_SOURCE <> 'BO') )                                  
+         AND (SUBSTR(E.EMAIL_ADDRESS,1,40)  LIKE '%@%' )                        
+                                                                                
+     /*  AND ( (E.PHONE_AVAIL_1 NOT IN ('V','P','D'))  OR                       
+  (SUBSTR(CHAR(E.PHONE_NUMBER_1),4,7) IN ('9999999','0000000','       ')) )     
+                                                                                
+         AND ( (E.PHONE_AVAIL_2 NOT IN ('V','P','D'))  OR                       
+  (SUBSTR(CHAR(E.PHONE_NUMBER_2),4,7) IN ('9999999','0000000','       ')) )     
+                                                                                
+         AND ( (E.PHONE_AVAIL_3 NOT IN ('V','P','D'))  OR                       
+  (SUBSTR(CHAR(E.PHONE_NUMBER_3),4,7) IN ('9999999','0000000','       ')) ) */  
+                                                                          ) ;   
+      QUIT;                                                                     
+                                                                                
+*ROC SQL INOBS=2500   LOOPS= 150;                                               
+PROC SQL ;                                                                      
+CREATE TABLE CMNTS AS                                                           
+SELECT * FROM CONNECTION TO DB2                                                 
+     (SELECT A.CASE_NUM                                                         
+            ,A.CANNED_HIST_CODE  AS HIST_CODE                                   
+            ,A.SEQUENCE_NUMBER                                                  
+                                                                                
+      FROM  CACS.CO_CASE_COLL_HIST  A                                           
+                                                                                
+       WHERE (A.LOCATION_CODE = '000001')                                       
+       /*AND (A.CASE_NUM  > '000000000000000001')    */                         
+         AND (A.SEQUENCE_NUMBER > '2008-07-26-17.00.00.000000')                 
+         AND (A.DATE_TIME       > '2008-07-26-17.00.00.000000')                 
+         AND (A.CANNED_HIST_CODE IN ('206','207','208','209'))                  
+     UNION ALL                                                                  
+        SELECT A.CASE_NUM                                                       
+              ,A.CANNED_HIST_CODE  AS HIST_CODE                                 
+              ,A.SEQUENCE_NUMBER                                                
+                                                                                
+        FROM  CACS.CO_CASE_COLL_HISAR A                                         
+                                                                                
+         WHERE (A.LOCATION_CODE = '000001')                                     
+         /*AND (A.CASE_NUM  > '000000000000000001')    */                       
+           AND (A.SEQUENCE_NUMBER > '2008-07-26-17.00.00.000000')               
+           AND (A.DATE_TIME       > '2008-07-26-17.00.00.000000')               
+           AND (A.CANNED_HIST_CODE IN ('206','207','208','209'))                
+                                                                                
+                                 ) ;                                            
+      QUIT;                                                                     
+                                                                                
+PROC SORT DATA = SKIPS ;  BY CASE_NUM ;                                         
+PROC SORT DATA = CMNTS  NODUPKEY;  BY CASE_NUM ;                                
+*ROC PRINT DATA = CMNTS;                                                        
+                                                                                
+DATA SKIPS2 ;                                                                   
+ MERGE SKIPS  (IN=A)                                                            
+       CMNTS  (IN=B) ;                                                          
+    BY CASE_NUM ;                                                               
+     IF A ;                                                                     
+     IF HIST_CODE = ' ';                                                        
+                                                                                
+*ROC PRINT DATA = SKIPS2 ;                                                      
+                                                                                
+*ROC SQL INOBS=9000 LOOPS=2500;                                                 
+PROC SQL ;                                                                      
+CREATE TABLE DAAR  AS                                                           
+SELECT * FROM CONNECTION TO DB2                                                 
+     (SELECT DATE(A.SEQ_NUMBER)            AS CREADTE                           
+            ,A.UNIQUE_LOAN_ID                                                   
+            ,A.CURR_PRIN_BAL_AMT + A.ACCR_INT_BAL_AMT AS BALANCE                
+            ,A.SSN                                                              
+            ,A.PAYMENT_DUE_DATE                                                 
+                                                                                
+      FROM  CACS.DAAR_TRACKING A                                                
+                                                                                
+     WHERE (A.PAYMENT_DUE_DATE BETWEEN                                          
+           (DATE('2008-08-01') - 360 DAYS) AND                                  
+           (DATE('2009-03-31') - 360 DAYS ))                                    
+       AND (A.CURE_DATE IS NULL)                                                
+                                     ) ;                                        
+   QUIT;                                                                        
+                                                                                
+PROC SUMMARY DATA = DAAR   NWAY;                                                
+ CLASS SSN ;                                                                    
+ ID PAYMENT_DUE_DATE;                                                           
+ VAR BALANCE ;                                                                  
+OUTPUT OUT = DAARS  SUM= BALANCE ;                                              
+                                                                                
+PROC SORT DATA = DAARS NODUPKEY ; BY SSN;                                       
+PROC SORT DATA = SKIPS2 NODUPKEY ; BY SSN;                                      
+                                                                                
+DATA SKIPS3 ;                                                                   
+ MERGE SKIPS2 (IN=A)                                                            
+       DAARS  (IN=B) ;                                                          
+    BY SSN ;                                                                    
+     IF A AND B;                                                                
+*F TODAY() - DUE_DATE > 270;                                                    
+OUTPUT SKIPS3;                                                                  
+                                                                                
+*ROC PRINT DATA = SKIPS3 ;                                                      
+                                                                                
+                                                                                
+FILENAME LCC 'TGTEST.TGMJK.DATA.HTML'                                           
+         DISP=NEW RECFM=VB LRECL=259                                            
+         BLKSIZE=27998;                                                         
+ODS HTML BODY=LCC TRANTAB=ASCII;                                                
+                                                                                
+PROC PRINT DATA = SKIPS3 LABEL SPLIT='/' NOOBS N ;                              
+ VAR SSN STATE BORR_NAME EMAIL PH_1 PH_2 PH_3 ADDR_STAT BALANCE ;               
+  SUM;                                                                          
+   LABEL  HM_PHNBR1 = 'Home Ph/Number'                                          
+               PH_1 = 'Hm Ph/Stat'                                              
+               PH_2 = 'Wk Ph/Stat'                                              
+               PH_3 = 'Ot Ph/Stat'                                              
+              STATE = 'Func/State'                                              
+          ADDR_STAT = 'Addr/Stat'                                               
+          BORR_NAME = 'Borrower Name'                                           
+            TG_USER = 'TG Rep'                                                  
+              EMAIL = 'E-Mail Address' ;                                        
+  /*ORMAT PH_1  $PHNST. ; */                                                    
+   FORMAT BALANCE DOLLAR10. ;                                                   
+                                                                                
+TITLE1 'TEXAS GUARANTEED STUDENT LOAN CORPORATION';                             
+TITLE2 'DEFAULT PREVENTION DEPARTMENT';                                         
+TITLE3 'Active DA Cases with E-Mail Address by Function State';                 
+*ITLE4 'No Callable Phone Numbers - Home, Work, Other';                         
+*ITLE4 'Func Entry >= 05/01/2006 AND No VAP In Last 71 Days (No Contact)';      
+TITLE4                                                                          
+'Active DAAR Cohorts & No E-mail exchanges in last 30 days/No VAP In Last 30 Day
+s (No Contact)';                                                                
+                                                                                
+PROC TABULATE FORMCHAR='|____|||___' DATA = SKIPS3;                             
+ TABLE STATE=' ' ALL='TOTAL CASES', N*F=COMMA7.  PCTN*F=8.1                     
+ (BALANCE=' '*F=DOLLAR15.)*(SUM PCTSUM<STATE ALL>*F=7.1) / RTS=15 ;             
+ CLASS STATE ;                                                                  
+  VAR BALANCE;                                                                  
+   KEYLABEL N ='# Cases'                                                        
+            SUM ='Est Balance'                                                  
+           PCTN ='Case %'                                                       
+         PCTSUM ='Bal %'     ;                                                  
+TITLE ' ';                                                                      
+                                                                                
+//********************************************************************          
+//* THIS JOB WILL FTP A FILE TO THE SERVER                           *          
+//********************************************************************          
+//FTPBAT EXEC PGM=FTP,REGION=4096K                                              
+//SYSPRINT DD SYSOUT=*                                                          
+//OUTPUT   DD SYSOUT=*,DCB=(RECFM=FB,LRECL=160,BLKSIZE=3200)                    
+//INPUT    DD DSN=TGPROD.CNTLCARD.SECURDPV(DPRVFTP),DISP=SHR                    
+//         DD *                                                                 
+BINARY                                                                          
+CD DPRV\MGMT\FTP MAINFRAME DIALER DOWNLOADS                                     
+PUT 'TGTEST.TGMJK.DATA.HTML' DA_EMAIL_LIST.XLS                                  
+CLOSE                                                                           
+QUIT                                                                            
+/*                                                                              
+                                                                                

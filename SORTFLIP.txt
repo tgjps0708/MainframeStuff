@@ -1,0 +1,18 @@
+//TGJPSS01 JOB (0,ADS3),'SORT',REGION=5800K,                                    
+//         CLASS=A,MSGCLASS=X                                                   
+/*JOBPARM   LINES=199                                                           
+//*-------------------------------------------------------------------*         
+//*-------------------------------------------------------------------*         
+//*                                                                             
+//SORT1      EXEC PGM=SORT                                                      
+//SYSOUT     DD   SYSOUT=*                                                      
+//SORTIN     DD DSN=TGPROD.CX.PCXD15AR.CAMUPDT,DISP=SHR                         
+//SORTOUT    DD DISP=(NEW,PASS,DELETE),DSN=&&FLIP,                              
+//           DCB=(MASTER.MODELDCB,RECFM=FB,LRECL=480,BLKSIZE=0),                
+//           SPACE=(CYL,(50,10),RLSE),UNIT=SYSDA                                
+//SYSIN      DD *                                                               
+  INREC FIELDS=(1:SEQNUM,7,ZD,START=1,INCR=1,8:1,480)                           
+  SORT FIELDS=(1,7,ZD,D)                                                        
+  OUTREC FIELDS=(1:8,480)                                                       
+  END                                                                           
+  //                                                                            

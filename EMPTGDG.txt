@@ -1,0 +1,25 @@
+//TGJPSGDF JOB (0376,ADS3),'GDG ',CLASS=A,MSGCLASS=X                    00010080
+//PROCJCL JCLLIB ORDER=DEVTST.AMS.CX.SVL.PROCJCL                                
+//  INCLUDE MEMBER=CXENVSET                                                     
+//*                                                                             
+//********************************************************************          
+//* DELETE OLD GDG WORKFILES                                                    
+//********************************************************************          
+//DELGDG  EXEC PGM=IEFBR14                                                      
+//SYSPRINT DD SYSOUT=*                                                          
+//DD1      DD DSN=&CATID..&SYSID..TCXU81BD.BUPDATE,                             
+//            DISP=(MOD,DELETE,DELETE)                                          
+//*-------------------------------------------------------------------*         
+//SETTHRD  EXEC PGM=SORT                                                        
+//SYSOUT   DD SYSOUT=*                                                          
+//$ORTPARM DD *                                                                 
+NULLOUT=RC0                                                                     
+//SORTIN   DD DUMMY,DCB=(RECFM=FB,LRECL=80)                                     
+//SORTOUT  DD DSN=&CATID..&SYSID..TCXU81BD.BUPDATE(+5),                         
+//            DISP=(NEW,CATLG,DELETE),                                          
+//            UNIT=SYSDA,SPACE=(TRK,0,RLSE),                                    
+//            DCB=(MASTER.MODELDCB,RECFM=FB,LRECL=80)                           
+//SYSIN    DD *                                                                 
+  SORT FIELDS=COPY                                                              
+  END                                                                           
+//                                                                              

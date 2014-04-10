@@ -1,0 +1,155 @@
+//TGJPSSC  JOB (0),'SUECONS1',                                          JOB00577
+//         CLASS=L,MSGCLASS=X,MSGLEVEL=(1,1)                                    
+/*JOBPARM ROOM=T5-3                                                             
+//*                                                                             
+//*    SAS JOB RUN BY JIM FELKNER EVERY MONTH                                   
+//*    OUT OF PROTECT LIBRARY TGUSERCF.AC.DATA.LIB                              
+//*                                                                             
+//STEP010 EXEC TGSAS,WORK='300,150'                                             
+//*                                                                             
+//ACCT     DD DSN=TGPROD.CC.CC07.ACCTHIST,DISP=SHR                              
+//ADDR     DD DSN=TGPROD.PC.PC02.ADDRMAST,DISP=SHR                              
+//COLL     DD DSN=TGPROD.CC.CC01.COLLMAST,DISP=SHR                              
+//KNOWN    DD DSN=TGTEST.JPS.JCL(CONSDATA),DISP=SHR                             
+//SYSIN DD *                                                                    
+  *****************************************************************;            
+  *** READ DATA FILE OF KNOWN AND EXPLAINABLE TRANSACTIONS      ***;            
+  *****************************************************************;            
+  DATA KNOWN;                                                                   
+    INFILE KNOWN;                                                               
+      INPUT @1 BORRKEY  $16.;                                                   
+                                                                                
+                                                                                
+                                                                                
+  PROC SORT DATA=KNOWN;                                                         
+            BY BORRKEY;                                                         
+                                                                                
+  DATA ACCHIST;                                                                 
+  *****************************************************************;            
+  *** CHANGE RPTDATE TO THE LAST DAY OF THE MONTH OF THE REPORT ***;            
+  *****************************************************************;            
+    %LET RPTDATE = '31DEC98'D;                                                  
+    REPDTE=PUT(&RPTDATE,MMDDYY8.);                                              
+    CALL SYMPUT ('REPDT',REPDTE) ;                                              
+    INFILE ACCT  ;                                                              
+      INPUT  @37   TCODE  $2.                                                   
+             @134  SCODE  $1.@;                                                 
+      IF TCODE = '10' AND SCODE IN ('A','D') AND SSSN = 257479151;              
+      INPUT @1  POSTDT YYMMDD6.                                                 
+            @11 SSNN     9.                                                     
+            @11 SSNC     $9.                                                    
+            @11 BORRKEY  $16.                                                   
+            @20 CLAIMNO  $7.                                                    
+            @45 TRANAMT  PD4.2;                                                 
+      IF TRANAMT NE 0;                                                          
+      IF SSN > 257479151 THEN                                                   
+         STOP;                                                                  
+                                                                                
+    PROC SORT DATA=ACCHIST ;                                                    
+       BY BORRKEY;                                                              
+                                                                                
+    DATA MSTAT ERRORS;                                                          
+      SET ACCHIST;                                                              
+       COLLKEY=BORRKEY;                                                         
+       INFILE COLL VSAM  KEY=COLLKEY FEEDBACK=SASBACK1;                         
+         INPUT @;                                                               
+         IF NOT (SASBACK1=4 | SASBACK1=16) THEN DO ;                            
+           INPUT @46 MAJSTAT  $1.                                               
+                 @52 STATDT  ?? YYMMDD6.;                                       
+           IF NOT (MAJSTAT = 'A' AND STATDT LE &RPTDATE);                       
+           OUTPUT MSTAT;                                                        
+         END;                                                                   
+         ELSE DO;                                                               
+            _ERROR_ = 0;                                                        
+            SASBACK1 = 0;                                                       
+            MESSAGE='NO COLLECTION RECORD FOR THIS TRANSACTION';                
+            OUTPUT ERRORS;                                                      
+         END;                                                                   
+                                                                                
+   PROC PRINT DATA=ERRORS SPLIT='/';                                            
+     FORMAT POSTDT YYMMDD6. SSNN SSN11. TRANAMT COMMA12.2;                      
+     VAR SSNN CLAIMNO TRANAMT;                                                  
+             SSNN = 'SSN'                                                       
+             CLAIMNO = 'CLAIM/NUMBER'                                           
+             TRANAMT='AMOUNT';                                                  
+   TITLE1 'TEXAS GUARANTEED STUDENT LOAN CORPORATION';                          
+   TITLE2 'CONSOLIDATED PAYMENTS ON THE ACCOUNT HISTORY FILE'           ;       
+   TITLE3 'WITH OUT A MATCHING RECORD ON THE COLLECTION MASTER'         ;       
+//                                                                              
+                                                                                
+    DATA NAMED (KEEP = POSTDT SSNN CLAIMNO NAME TRANAMT TCODE SCODE             
+                       MAJSTAT BORRKEY);                                        
+      SET MSTAT;                                                                
+       NAMEKEY=SSNC;                                                            
+       INFILE ADDR VSAM KEY=NAMEKEY FEEDBACK=SASBACK  ;                         
+                                                                                
+        INPUT @15 LNAME  $15.                                                   
+              @30 FNAME  $10.                                                   
+              @40 MI     $1. ;                                                  
+                                                                                
+    IF SASBACK =16 | SASBACK =4 THEN DO ;                                       
+        NAME = ' NAME NOT FOUND' ;                                              
+      END ;                                                                     
+    ELSE NAME = TRIM(LNAME)||', '||TRIM(FNAME)||' '||MI ;                       
+                                                                                
+    _ERROR_=0 ;                                                                 
+    SASBACK=0 ;                                                                 
+    OUTPUT NAMED;                                                               
+                                                                                
+    PROC SORT DATA=NAMED;                                                       
+      BY BORRKEY;                                                               
+                                                                                
+    DATA WEKNOW HELPUS;                                                         
+      MERGE KNOWN (IN=A) NAMED (IN=B);                                          
+      BY BORRKEY;                                                               
+      IF A THEN OUTPUT WEKNOW;                                                  
+      IF B AND NOT A THEN OUTPUT HELPUS;                                        
+                                                                                
+                                                                                
+    PROC SORT DATA=HELPUS;                                                      
+      BY SCODE POSTDT;                                                          
+                                                                                
+    PROC SORT DATA=WEKNOW;                                                      
+      BY SCODE POSTDT;                                                          
+                                                                                
+                                                                                
+   PROC PRINT DATA=HELPUS SPLIT='/';                                            
+     BY SCODE;                                                                  
+     PAGEBY SCODE;                                                              
+     SUM TRANAMT;                                                               
+     SUMBY SCODE;                                                               
+     FORMAT POSTDT MMDDYY8. SSNN SSN11. TRANAMT COMMA12.2;                      
+     VAR POSTDT SSNN CLAIMNO NAME TRANAMT MAJSTAT;                              
+       LABEL POSTDT='POST/DATE'                                                 
+             SCODE='SOURCE CODE'                                                
+             SSNN = 'SSN'                                                       
+             CLAIMNO = 'CLAIM/NUMBER'                                           
+             NAME ='BORROWER NAME'                                              
+             MAJSTAT='MAJOR/STATUS'                                             
+             TRANAMT='AMOUNT';                                                  
+   TITLE1 'TEXAS GUARANTEED STUDENT LOAN CORPORATION';                          
+   TITLE2 'UNRESOLVED CONSOLIDATED PAYMENTS ON THE ACCOUNT HISTORY FILE';       
+   TITLE3 'WITH A MAJOR STATUS OTHER THAN PAID IN FULL BY CONSOLIDATION';       
+   TITLE4 "AS OF &REPDT BASED ON THE MAJOR STATUS DATE";                        
+   FOOTNOTE 'TGUSERCF.BA.REPORTS.LIB(SUECONS1)- PREPARED BY JACK YEAGER';       
+                                                                                
+   PROC PRINT DATA=WEKNOW SPLIT='/';                                            
+     BY SCODE;                                                                  
+     PAGEBY SCODE;                                                              
+     SUM TRANAMT;                                                               
+     SUMBY SCODE;                                                               
+     FORMAT POSTDT MMDDYY8. SSNN SSN11. TRANAMT COMMA12.2;                      
+     VAR POSTDT SSNN CLAIMNO NAME TRANAMT MAJSTAT;                              
+       LABEL POSTDT='POST/DATE'                                                 
+             SCODE='SOURCE CODE'                                                
+             SSNN = 'SSN'                                                       
+             CLAIMNO = 'CLAIM/NUMBER'                                           
+             NAME ='BORROWER NAME'                                              
+             MAJSTAT='MAJOR/STATUS'                                             
+             TRANAMT='AMOUNT';                                                  
+   TITLE1 'TEXAS GUARANTEED STUDENT LOAN CORPORATION';                          
+   TITLE2 'RESOLVED CONSOLIDATED PAYMENTS ON THE ACCOUNT HISTORY FILE';         
+   TITLE3 'WITH A MAJOR STATUS OTHER THAN PAID IN FULL BY CONSOLIDATION';       
+   TITLE4 "AS OF &REPDT BASED ON THE MAJOR STATUS DATE";                        
+   FOOTNOTE 'TGUSERCF.BA.REPORTS.LIB(SUECONS1)- PREPARED BY JACK YEAGER';       
+                                                                                

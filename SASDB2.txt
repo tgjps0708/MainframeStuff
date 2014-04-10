@@ -1,0 +1,51 @@
+//TGABCWKF JOB (0310,9999),'ART CRUZ EXT 4934 ',                        JOB05513
+//             CLASS=O,MSGCLASS=X,                                              
+//             MSGLEVEL=(1,1),                                                  
+// USER=TGABC,PASSWORD=                                                         
+//SASDB2    EXEC SASDB2P                                                        
+//WORK      DD UNIT=SYSDA,SPACE=(CYL,(1000,1000))                               
+//WORK2     DD UNIT=SYSDA,SPACE=(CYL,(1000,1000))                               
+//SYSIN    DD  *                                                                
+                                                                                
+  /* OPTIONS DB2SSID=DSNQ;  */                                                  
+     OPTIONS DB2SSID=DSNP;                                                      
+                                                                                
+   /*PROC SQL INOBS=250000 LOOPS=2500; */                                       
+     PROC SQL ;                                                                 
+CREATE TABLE CNSL  AS                                                           
+SELECT * FROM CONNECTION TO DB2                                                 
+     (SELECT E.PHONE_AVAIL_1                                                    
+            ,E.PHONE_TYPE_1                                                     
+            ,SUBSTR(CHAR(E.PHONE_NUMBER_1),4,7)  AS HM_PHNBR_1                  
+            ,SUBSTR(CHAR(E.PHONE_NUMBER_1),1,10) AS HM_PHONE_1                  
+            ,E.DEBTR_ADDR_SOURCE                                                
+            ,H.LOCATION_CODE                                                    
+          /*,H.PRI_SEC_IND */                                                   
+            ,H.CASE_NUM                                                         
+            ,H.FUNCTION_STATE                                                   
+            ,H.STATE_ENTRY_DATE                                                 
+            ,H.FUNC_ENTRY_DATE                                                  
+                                                                                
+      FROM  CACS.CO_DEBTOR_ADDRESS   E                                          
+           ,CACS.CO_CASE_STATE_POOL  H                                          
+                                                                                
+        WHERE (H.LOCATION_CODE = '000004') AND                                  
+              (H.PRI_SEC_IND = 'P')     AND                                     
+              (H.FUNCTION_STATE IN ('CS07','CN12')) AND                         
+              (E.DEBTOR_ID = H.CASE_NUM)  AND                                   
+              (E.ADDR_TYPE    = '205')  AND                                     
+              (E.DEMOG_STATUS = 'C')   AND                                      
+                                                                                
+           ( (E.PHONE_AVAIL_1 = ' ')   AND                                      
+(SUBSTR(CHAR(E.PHONE_NUMBER_1),4,7) NOT IN ('9999999','0000000','       ')) )   
+                                   ) ;                                          
+      QUIT;                                                                     
+                                                                                
+                                                                                
+ PROC SORT  DATA = CNSL ;  BY FUNCTION_STATE STATE_ENTRY_DATE FUNC_ENTRY_DATE ; 
+ PROC PRINT DATA = CNSL  ;                                                      
+TITLE1 'TEXAS GUARANTEED STUDENT LOAN CORPORATION';                             
+TITLE2 'DEFAULT PREVENTION DEPARTMENT';                                         
+TITLE4 'CASES WITH VALID HM PH NBRS IN INVALID PHONE STATES';                   
+FOOTNOTE1 'LIB(WKFLWPHN)';                                                      
+                                                                                

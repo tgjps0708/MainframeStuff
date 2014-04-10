@@ -1,0 +1,208 @@
+/* REXX 8/03/2007 J SCHARNBERG EXPAND COPYCODE / DCLGEN */                      
+DEBUG="N"                                                                       
+"ISREDIT MACRO NOPROCESS"                                                       
+/*------- FIND OUT IF ANY .XC LABELS  EXIST ---------*/                         
+"ISREDIT (XCLINENO) = LINENUM .XC"                                              
+ IF DEBUG="Y" THEN                                                              
+    TRACE R                                                                     
+/*------- NO .XC LABEL EXIST ---------*/                                        
+IF (XCLINENO = 0) THEN                                                          
+   DO /* NO MARKING */                                                          
+    SAY "NO LINE WAS MARKED WITH .XC"                                           
+    EXIT 8                                                                      
+   END                                                                          
+IF XCLINENO > 0 THEN                                                            
+  CALL XPNDTYPE                                                                 
+IF CBTYPE='CB' THEN                                                             
+  CALL CBEXPD                                                                   
+IF DGTYPE='DG' THEN                                                             
+  CALL DGEXPD                                                                   
+"ISREDIT  RESET LABEL"                                                          
+EXIT(0)                                                                         
+XPNDTYPE:                                                                       
+/*--- FIND COPY OR INCLUDE STATEMENT -------------*/                            
+CBTYPE='NO'                                                                     
+DGTYPE='NO'                                                                     
+"ISREDIT (THELINE) = LINE .XC"                                                  
+CBCOL=POS(' COPY',THELINE)                                                      
+IF CBCOL>0 THEN                                                                 
+   CBTYPE='CB'                                                                  
+DGCOL=POS(' INCLUDE',THELINE)                                                   
+IF DGCOL>0 THEN                                                                 
+   DGTYPE='DG'                                                                  
+RETURN                                                                          
+CBEXPD:                                                                         
+/*--- PARSE OUT THE COPYBOOK MEMBER -------------------*/                       
+"ISREDIT (THELINE) = LINE .XC"                                                  
+    CBCOLB=POS('COPY',THELINE) + 4                                              
+    CBCOLE=POS(' REPLACING',THELINE)                                            
+    IF CBCOLE<1 THEN                                                            
+       DO                                                                       
+         CBCOLE=POS(' SUP',THELINE,CBCOLB + 1)                                  
+       END                                                                      
+    IF CBCOLE<1 THEN                                                            
+       DO                                                                       
+         CBCOLE=POS(' ',THELINE,CBCOLB + 1)                                     
+       END                                                                      
+    IF CBCOLE<1 THEN                                                            
+       DO                                                                       
+         CBCOLE=POS('.',THELINE) - 1                                            
+       END                                                                      
+    IF CBCOLB=0  & CBCOLE=0 THEN                                                
+       DO                                                                       
+       SAY "NO COPYBOOK MEMBER FOUND"                                           
+       "ISREDIT RESET LABEL" /* ERASE .XC LINE COMMAND */                       
+       EXIT 8                                                                   
+       END                                                                      
+    CPYBKN= SUBSTR(THELINE,CBCOLB,(CBCOLE - CBCOLB) + 1)                        
+    CPYBKN= STRIP((CPYBKN))                                                     
+    CPYBKN= STRIP((CPYBKN),,'.')                                                
+/* GET NAME OF CURRENT DATA SET */                                              
+    "ISREDIT (CURDS,VAR2,VAR3) = DATASET "                                      
+   CCOLE = LASTPOS('.',CURDS)                                                   
+   CDSN = SUBSTR(CURDS,1,CCOLE)'COPYLIB'                                        
+/*--- USE CURRENT DATA SET TO GET COPYLIB DSN -----------*/                     
+CDSN=CDSN'('CPYBKN')'                                                           
+QDSN="'"CDSN"'"                                                                 
+CKDSN=SYSDSN(CDSN)                                                              
+/*--- IF NOT IN CURRENT DATA SET COPYLIB -----------*/                          
+/*--- THEN CHECK CX PROD COPYLIB  -----------*/                                 
+IF CKDSN = 'OK' THEN                                                            
+   NOP                                                                          
+ELSE                                                                            
+  DO                                                                            
+    CDSN='TGPROD.CX.COPYLIB('CPYBKN')'                                          
+    QDSN="'"CDSN"'"                                                             
+    CKDSN=SYSDSN(CDSN)                                                          
+  END                                                                           
+/*--- IF NOT IN CX PROD COPYLIB  -----------*/                                  
+/*--- THEN CHECK AL PROD COPYLIB -----------*/                                  
+IF CKDSN = 'OK' THEN                                                            
+   NOP                                                                          
+ELSE                                                                            
+  DO                                                                            
+    CDSN='TGPROD.AL.COPYLIB('CPYBKN')'                                          
+    QDSN="'"CDSN"'"                                                             
+    CKDSN=SYSDSN(CDSN)                                                          
+  END                                                                           
+IF CKDSN = 'OK' THEN                                                            
+   NOP                                                                          
+ELSE                                                                            
+  DO                                                                            
+    CDSN='TGPROD.ES.COPYLIB('CPYBKN')'                                          
+    QDSN="'"CDSN"'"                                                             
+    CKDSN=SYSDSN(CDSN)                                                          
+  END                                                                           
+IF CKDSN = 'OK' THEN                                                            
+   NOP                                                                          
+ELSE                                                                            
+  DO                                                                            
+    CDSN='TGPROD.BATCH.COPYLIB('CPYBKN')'                                       
+    QDSN="'"CDSN"'"                                                             
+    CKDSN=SYSDSN(CDSN)                                                          
+  END                                                                           
+IF CKDSN = 'OK' THEN                                                            
+   NOP                                                                          
+ELSE                                                                            
+  DO                                                                            
+    SAY 'COPYBOOK NOT FOUND IN' CDSN                                            
+    "ISREDIT  RESET LABEL"                                                      
+    EXIT(8)                                                                     
+  END                                                                           
+"ISREDIT COPY" QDSN "AFTER .XC"                                                 
+XCNOTE="MEMBER COPIED FROM" CDSN                                                
+"ISREDIT LINE_AFTER .XC = NOTELINE (XCNOTE)"                                    
+RETURN                                                                          
+DGEXPD:                                                                         
+/*--- PARSE OUT THE DCLGEN MEMBER -------------------*/                         
+ "ISREDIT (THELINE) = LINE .XC"                                                 
+    DGCOLB=POS('INCLUDE',THELINE) + 7                                           
+    DGCOLE=0                                                                    
+    IF DGCOLE<1 THEN                                                            
+       DO                                                                       
+         DGCOLE=POS(' ',THELINE,DGCOLB + 1)                                     
+       END                                                                      
+    IF DGCOLE<1 THEN                                                            
+       DO                                                                       
+         DGCOLE=POS('.',THELINE) - 1                                            
+       END                                                                      
+    IF DGCOLB=0  & DGCOLE=0 THEN                                                
+       DO                                                                       
+       SAY "NO DCLGEN MEMBER FOUND"                                             
+       "ISREDIT RESET LABEL" /* ERASE .XC LINE COMMAND */                       
+       EXIT 8                                                                   
+       END                                                                      
+    DGBKN= SUBSTR(THELINE,DGCOLB,(DGCOLE - DGCOLB) + 1)                         
+    DGBKN= STRIP((DGBKN))                                                       
+/* GET NAME OF CURRENT DATA SET */                                              
+    "ISREDIT (CURDS,VAR2,VAR3) = DATASET "                                      
+   CCOLE = LASTPOS('.',CURDS)                                                   
+   CDSN = SUBSTR(CURDS,1,CCOLE)'DCLGEN'                                         
+/*--- USE CURRENT DATA SET TO GET DCLGEN DSN -----------*/                      
+CDSN=CDSN'('DGBKN')'                                                            
+QDSN="'"CDSN"'"                                                                 
+CKDSN=SYSDSN(CDSN)                                                              
+/*--- IF NOT IN CURRENT DATA SET DCLGE -----------*/                            
+/*--- THEN CHECK CX PROD DCLGEN   -----------*/                                 
+IF CKDSN = 'OK' THEN                                                            
+   NOP                                                                          
+ELSE                                                                            
+  DO                                                                            
+    CDSN='TGPROD.CX.DCLGEN('DGBKN')'                                            
+    QDSN="'"CDSN"'"                                                             
+    CKDSN=SYSDSN(CDSN)                                                          
+  END                                                                           
+/*--- IF NOT IN CX PROD DCLGEN  -----------*/                                   
+/*--- THEN CHECK AL PROD DCLGEN -----------*/                                   
+IF CKDSN = 'OK' THEN                                                            
+   NOP                                                                          
+ELSE                                                                            
+  DO                                                                            
+    CDSN='TGPROD.AL.DCLGEN('DGBKN')'                                            
+    QDSN="'"CDSN"'"                                                             
+    CKDSN=SYSDSN(CDSN)                                                          
+  END                                                                           
+IF CKDSN = 'OK' THEN                                                            
+   NOP                                                                          
+ELSE                                                                            
+  DO                                                                            
+    CDSN='TGPROD.CX.COPYLIB('DGBKN')'                                           
+    QDSN="'"CDSN"'"                                                             
+    CKDSN=SYSDSN(CDSN)                                                          
+  END                                                                           
+IF CKDSN = 'OK' THEN                                                            
+   NOP                                                                          
+ELSE                                                                            
+  DO                                                                            
+    CDSN='TGPROD.AL.COPYLIB('DGBKN')'                                           
+    QDSN="'"CDSN"'"                                                             
+    CKDSN=SYSDSN(CDSN)                                                          
+  END                                                                           
+IF CKDSN = 'OK' THEN                                                            
+   NOP                                                                          
+ELSE                                                                            
+  DO                                                                            
+    CDSN='TGPROD.ES.COPYLIB('DGBKN')'                                           
+    QDSN="'"CDSN"'"                                                             
+    CKDSN=SYSDSN(CDSN)                                                          
+  END                                                                           
+IF CKDSN = 'OK' THEN                                                            
+   NOP                                                                          
+ELSE                                                                            
+  DO                                                                            
+    CDSN='TGPROD.BATCH.COPYLIB('DGBKN')'                                        
+    QDSN="'"CDSN"'"                                                             
+    CKDSN=SYSDSN(CDSN)                                                          
+  END                                                                           
+IF CKDSN = 'OK' THEN                                                            
+   NOP                                                                          
+ELSE                                                                            
+  DO                                                                            
+    SAY 'DCLGEN NOT FOUND IN' CDSN                                              
+    "ISREDIT  RESET LABEL"                                                      
+    EXIT(8)                                                                     
+  END                                                                           
+"ISREDIT COPY" QDSN "AFTER .XC"                                                 
+XCNOTE="MEMBER COPIED FROM" CDSN                                                
+"ISREDIT LINE_AFTER .XC = NOTELINE (XCNOTE)"                                    
+RETURN                                                                          

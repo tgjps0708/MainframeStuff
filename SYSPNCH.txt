@@ -1,0 +1,13 @@
+//TGJPSPNH JOB (0376,ADS3),CLASS=B,                                             
+//             MSGCLASS=X,NOTIFY=&SYSUID                                        
+//*                                                                             
+//***********************************************************                   
+//*  IBM UNLOAD DSNPIAUL                                                        
+//***********************************************************                   
+//UNLOAD1  EXEC DB2PUNL2                                                        
+//SYSREC00 DD DUMMY                                                             
+//SYSPUNCH DD DISP=SHR,DSN=TGTEST.DACCS.SYSPUNCH.SUPPORT(TSCX317)               
+//SYSIN    DD *                                                                 
+   SELECT * FROM CACS.CX317_SKIPTRACE_TRACKING                                  
+     WHERE LOCATION_CODE = '000005'                                             
+     WITH UR;                                                                   

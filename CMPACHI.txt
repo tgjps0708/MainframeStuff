@@ -1,0 +1,14 @@
+//TGJPSRF  JOB (0376,ADS3),'COMP ACH IND ERRS',CLASS=A,                         
+//         MSGCLASS=X                                                           
+//SUPERC  EXEC PGM=ISRSUPC,                                            *        
+//            PARM=(DELTAL,LINECMP,                                             
+//            'LONGLN',                                                         
+//            '')                                                               
+//NEWDD  DD DSN=TGTEST.JPS.DATA(CACH421),                                       
+//          DISP=SHR                                                            
+//OLDDD  DD DSN=TGTEST.JPS.DATA(CACH420),                                       
+//          DISP=SHR                                                            
+//OUTDD  DD SYSOUT=(X)                                                          
+//SYSIN  DD *                                                                   
+CMPCOLM 11:20                                                                   
+/*                                                                              

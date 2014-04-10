@@ -1,0 +1,17 @@
+//VNJYGSTR JOB (0000),'VNJYG',MSGCLASS=X,CLASS=B,                       JOB08643
+//    REGION=4096K,NOTIFY=VNJYG,                                                
+// USER=VNJYG,PASSWORD=                                                         
+/*JOBPARM ROOM=T8-3  MAIL STOP FOR ROUTING PRINTOUTS                            
+//*                                                                             
+//STEP1OF5 EXEC PGM=IDCAMS                                                      
+//SYSPRINT DD SYSOUT=*                                                          
+//SYSIN    DD *                                                                 
+  DELETE GSID.COD.C1STRDB     CLUSTER PURGE                                     
+  DEFINE CLUSTER (NAME(GSID.COD.C1STRDB)              -                         
+         NUMBERED                              -                                
+         SHR(3 3)                              -                                
+         SPEED                                 -                                
+         REUSE                                 -                                
+         CYL(30 5)                             -                                
+         RECORDSIZE(24566 24566)               -                                
+         CISZ(24576))                                                           

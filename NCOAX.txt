@@ -1,0 +1,31 @@
+//TGJPS419 JOB (0376,ADS3),'NCOA EXT',                                          
+//         CLASS=T,MSGCLASS=X                                                   
+/*JOBPARM      ROOM=ADS3                                                        
+//DELXTRS EXEC PGM=IEFBR14                                                      
+//SYSPRINT DD SYSOUT=*                                                          
+//DD1      DD DSN=TGTEST.BT.JPS.NCOA.INB.EXTRACT,                               
+//            DISP=(MOD,DELETE,DELETE),                                         
+//            UNIT=SYSDA,SPACE=(TRK,1,RLSE)                                     
+//DD1      DD DSN=TOMVSD.BT.JPS.NCOA.INB.EXTRACT,                               
+//            DISP=(MOD,DELETE,DELETE),                                         
+//            UNIT=SYSDA,SPACE=(TRK,1,RLSE)                                     
+//*-------------------------------------------------------------------*         
+//*-------------------------------------------------------------------*         
+//*                                                                             
+//SORT       EXEC PGM=SORT                                                      
+//SORTLIB    DD   DSN=SYS1.SORTLIB,DISP=SHR                                     
+//SYSOUT     DD   SYSOUT=*                                                      
+//SYSUDUMP   DD   SYSOUT=X                                                      
+//$ORTPARM   DD DSN=TGPROD.SYNCSORT.NOCINV,DISP=SHR                             
+//SORTIN     DD DSN=TGPROD.BT.PBTU419O.NCOA.BKUP.G0043V00,DISP=SHR              
+//SORTOUT    DD DSN=TOMVSD.BT.JPS.NCOA.INB.EXTRACT,                             
+//            DISP=(NEW,CATLG,DELETE),                                          
+//            DCB=(RECFM=FB,LRECL=587,BLKSIZE=0),                               
+//            SPACE=(CYL,(1,1),RLSE),UNIT=SYSDA                                 
+//SYSIN      DD *                                                               
+  SORT FIELDS=(1,1,CH,A),EQUALS,STOPAFT=100                                     
+  INCLUDE COND=(135,1,CH,EQ,C'M')                                               
+  RECORD TYPE=F                                                                 
+  END                                                                           
+   END                                                                          
+//*                                                                             

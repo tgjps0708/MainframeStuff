@@ -1,0 +1,29 @@
+//TGJPSRF  JOB (0999,ADS3),'BATCH SFOR ',CLASS=A,                               
+//         MSGCLASS=X                                                           
+/*JOBPARM LINES=999                                                             
+//SEARCH  EXEC PGM=ISRSUPC,                                           *         
+//            PARM=(SRCHCMP,                                                    
+//            'DPCBCMT LPSF XREF NOSUMS LONGLN')                                
+//NEWDD  DD DSN=TGPROD.CX.SOURCE,                                               
+//          DISP=SHR                                                            
+//OUTDD  DD DISP=SHR,DSN=TGJPS.SFOR.P375.CX.RESULTS                             
+//SYSIN  DD *                                                                   
+SRCHFOR  'CALL',                                                                
+SRCHFORC 'ISCC187'                                                              
+SRCHFOR  'CALL',                                                                
+SRCHFORC 'ISCC198'                                                              
+SRCHFOR  'CALL',                                                                
+SRCHFORC 'ISCC214'                                                              
+SRCHFOR  'CALL',                                                                
+SRCHFORC 'ISCC240'                                                              
+SRCHFOR  'CALL',                                                                
+SRCHFORC 'ISCC266'                                                              
+SRCHFOR  'CALL',                                                                
+SRCHFORC 'ISCC270'                                                              
+SRCHFOR  'CALL',                                                                
+SRCHFORC 'ISCC317'                                                              
+SRCHFOR  'CALL',                                                                
+SRCHFORC 'ISCC320'                                                              
+SRCHFOR  'CALL',                                                                
+SRCHFORC 'ISCC920'                                                              
+/*                                                                              

@@ -1,0 +1,27 @@
+//TGJPSS01 JOB (0,ADS3),'SORT',REGION=5800K,                            JOB03845
+//         CLASS=A,MSGCLASS=X                                                   
+/*JOBPARM   LINES=199                                                           
+//*-------------------------------------------------------------------*         
+//DELXTRS EXEC PGM=IEFBR14                                                      
+//SYSPRINT DD SYSOUT=*                                                          
+//DD1      DD DSN=DEVTST.JPS.DA.SKIP751,                                        
+//            UNIT=SYSDA,SPACE=(TRK,0),                                         
+//            DISP=(MOD,DELETE,DELETE)                                          
+//DD2      DD DSN=DEVTST.JPS.COL.SKIP751,                                       
+//            UNIT=SYSDA,SPACE=(TRK,0),                                         
+//            DISP=(MOD,DELETE,DELETE)                                          
+//*-------------------------------------------------------------------*         
+//*                                                                             
+//SORT1      EXEC PGM=SORT                                                      
+//SYSOUT     DD   SYSOUT=*                                                      
+//SORTIN     DD DSN=TGPROD.CX.PCXD751D.SKIP751,DISP=SHR                         
+//SORTOUT    DD DSN=DEVTST.JPS.DA.SKIP751,                                      
+//            DCB=(LRECL=528,RECFM=FB,BLKSIZE=0),                               
+//            SPACE=(CYL,(20,10),RLSE),UNIT=SYSDA,                              
+//            DISP=(NEW,CATLG,DELETE)                                           
+//SYSIN      DD *                                                               
+  SORT FIELDS=COPY                                                              
+   ALTSEQ CODE=(A140,4F40,7940,BA40)                                            
+   OUTREC FIELDS=(1:1,528,TRAN=ALTSEQ)                                          
+  END                                                                           
+//*                                                                             

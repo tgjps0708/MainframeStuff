@@ -1,0 +1,23 @@
+//TGJPSS01 JOB (P096,ADS3),'FILE SORT DUP',                                     
+//         CLASS=A,MSGCLASS=X,NOTIFY=&SYSUID                                    
+/*JOBPARM LINES=999,ROOM=ADS3                                                   
+//*-------------------------------------------------------------------*         
+//*-------------------------------------------------------------------*         
+//*                                                                             
+//SORT     EXEC PGM=SYNCSORT                                                    
+//SYSOUT   DD   SYSOUT=*                                                        
+//SYSUDUMP DD   SYSOUT=Z                                                        
+//SORTIN   DD DISP=SHR,DSN=DEVTST.P096.SC122052.LPX26800.RFNDS                  
+//SORTOUT  DD DSN=DEVTST.P096.SC122052.LPX26800.RFNDS.WOD,                      
+//            DISP=(NEW,CATLG,DELETE),                                          
+//            UNIT=SYSDA,SPACE=(CYL,(50,50),RLSE),                              
+//            DCB=(RECFM=FB,LRECL=504,BLKSIZE=0),BUFNO=25                       
+//SORTXSUM DD DSN=DEVTST.P096.SC122052.LPX26800.RFNDS.XSUM,                     
+//            DISP=(NEW,CATLG,DELETE),                                          
+//            UNIT=SYSDA,SPACE=(CYL,(50,50),RLSE),                              
+//            DCB=(RECFM=FB,LRECL=504,BLKSIZE=0),BUFNO=25                       
+//SYSIN    DD *                                                                 
+   SORT FIELDS=(1,504,CH,A)                                                     
+     SUM FIELDS=NONE,XSUM                                                       
+   END                                                                          
+//*                                                                             

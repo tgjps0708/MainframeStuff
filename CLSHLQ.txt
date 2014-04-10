@@ -1,0 +1,50 @@
+//TGJPSCSQ JOB (0),'CLOSE SHL QRY',                                             
+//**     RESTART=RMVDUPS,                                                       
+//       CLASS=L,MSGCLASS=X,REGION=4M,NOTIFY=TGJPS                              
+/*JOBPARM ROOM=T5-3                                                             
+//EXECSASA EXEC TGSAS,COND=(0,NE),                                              
+//         OPTIONS='PAGESIZE=60,LINESIZE=100'                                   
+//*                                                                             
+//LGO    DD DSN=TGPROD.MI.MIX10000.EXTD.LOANEXT,DISP=SHR                        
+//SYSIN  DD *      N=TGPROD.SOURCE.LIB(CCX830#0),DISP=SHR                     00
+  OPTIONS ERRORS=1 YEARCUTOFF=1930;                                             
+  DATA MISSED;                                                                  
+  INFILE LGO; ;                                                                 
+    INPUT  @1  SSN           $9.                                                
+          @10  LNNO          $3.                                                
+          @13  LOANSTAT      $1.                                                
+          @15  LNDRID        $6.                                                
+          @57  SCHLID        $9.                                                
+          @84  LPB ??   YYMMDD6.                                                
+          @92  LPE ??   YYMMDD6.                                                
+         @146  GUARAMT      PD4.2                                               
+         @186  EOSD ??  YYMMDD6.                                                
+         @342  ACTDT ?? YYMMDD6.                                                
+         @587  CSSTAT        $2.;                                               
+                                                                                
+    IF (SCHLID = '008140000' AND LPE > '29OCT1993'D)                            
+       OR                                                                       
+       (SCHLID = '023544000' AND LPE > '06MAY1990'D)                            
+       THEN OUTPUT MISSED;                                                      
+                                                                                
+  DATA MISSED2;                                                                 
+  SET MISSED;                                                                   
+     IF (LOANSTAT = 'X') OR (LOANSTAT = 'W') OR (LOANSTAT = 'T')                
+     THEN                                                                       
+         DELETE;                                                                
+     ELSE                                                                       
+         OUTPUT MISSED2;                                                        
+                                                                                
+  PROC SORT DATA = MISSED2; BY LNDRID;                                          
+                                                                                
+  PROC PRINT DATA=MISSED2 UNIFORM SPLIT = '*';                                  
+    BY LNDRID;                                                                  
+    PAGEBY LNDRID;                                                              
+                                                                                
+    VAR SSN LNNO LOANSTAT ACTDT EOSD LPB LPE CSSTAT GUARAMT SCHLID;             
+    FORMAT LPB LPE EOSD ACTDT MMDDYY6.;                                         
+    FORMAT GUARAMT DOLLAR9.2;                                                   
+                                                                                
+TITLE1 'TGSLC';                                                                 
+TITLE2 'SUCCESS BORROWERS W/ LPE > 10/29/93';                                   
+//                                                                              

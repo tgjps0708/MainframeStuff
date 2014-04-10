@@ -1,0 +1,15 @@
+//TGJPSBGD JOB (0376,ADS3),'DEF GDG BASE',                                      
+//           CLASS=A,MSGCLASS=X,REGION=4096K,                                   
+//           NOTIFY=TGJPS                                                       
+//*                                                                             
+//**********************************************************************        
+//*        DEFINE GDG BASE                                             *        
+//**********************************************************************        
+//BLDGDG1 EXEC PGM=IDCAMS                                                       
+//SYSPRINT DD SYSOUT=(*)                                                        
+//SYSIN    DD *                                                                 
+ DEFINE GENERATIONDATAGROUP                   -                                 
+        (NAME(TGTEST.WHSE.PCXX205D.SKIPTRAK) -                                  
+        LIMIT(05)                             -                                 
+        NOEMPTY                               -                                 
+        SCRATCH)                                                                

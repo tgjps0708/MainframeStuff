@@ -1,0 +1,207 @@
+/* REXX 5/9/97 R.PARKE - GO BROWSE OR EDIT A DATASET ON EDITED LINE */
+DEBUG="N"
+"ISREDIT MACRO NOPROCESS"
+/*------- HLQ USING SEEK OF ORDER= PARM              ---------*/
+ ODRFND = "N"
+"ISREDIT SEEK ORDER=(  FIRST"
+    IF RC = 0 THEN DO
+       "ISREDIT (DSHLQ) = LINE .ZCSR"
+       FPHLQ = LASTPOS('(',DSHLQ)
+       FPHLQ = FPHLQ + 1
+       ODRFND = "Y"
+    END
+    ELSE DO
+       "ISREDIT SEEK ORDER= FIRST"
+       IF RC = 0 THEN DO
+          "ISREDIT (DSHLQ) = LINE .ZCSR"
+          FPHLQ = LASTPOS('=',DSHLQ)
+          FPHLQ = FPHLQ + 1
+          ODRFND = "Y"
+       END
+    END
+IF ODRFND = "Y" THEN DO
+   IF DEBUG="Y" THEN SAY "FPHLQ " FPHLQ
+   LPHLQ = LASTPOS('.PRO',DSHLQ)
+   SZHLQ = LPHLQ - FPHLQ
+   IF DEBUG="Y" THEN SAY "LPHLQ " LPHLQ
+   HLQ = SUBSTR(DSHLQ,FPHLQ,SZHLQ)
+   IF DEBUG="Y" THEN SAY "HLQ " HLQ
+END
+ 
+/*------- FIND OUT IF ANY .BR OR .ED BOOKMARKS EXIST ---------*/
+"ISREDIT (BRLINENO) = LINENUM .BR"
+    IF DEBUG="Y" THEN SAY "BRLINENO="BRLINENO
+"ISREDIT (EDLINENO) = LINENUM .ED"
+    IF DEBUG="Y" THEN SAY "EDLINENO="EDLINENO
+/*------- ALLOW ONE OF EACH TYPE -----------------------------*/
+IF EDLINENO=0 & BRLINENO=0 THEN EDORBR='NO'
+ELSE
+IF BRLINENO<1 & EDLINENO>=1 THEN EDORBR='ED'
+ELSE
+IF BRLINENO>=1 & EDLINENO<1 THEN EDORBR='BR'
+ELSE
+IF BRLINENO>EDLINENO THEN EDORBR='ED'
+ELSE
+IF BRLINENO<EDLINENO THEN EDORBR='BR'
+    IF DEBUG="Y" THEN SAY "EDORBR="EDORBR
+/*------- NO .BR OR .ED BOOKMARKS EXIST; EXIT ---------*/
+IF EDORBR='NO' THEN
+   DO /* EDORBR='NO' */
+   "ISPEXEC SETMSG MSG(TGSY012)"
+   EXIT 8
+   END /* EDORBR='NO' */
+/*------- FOUND ONE OR THE OTHER ---------*/
+    IF EDORBR='BR' THEN
+       "ISREDIT (THELINE) = LINE .BR"
+    ELSE
+    IF EDORBR='ED' THEN
+       "ISREDIT (THELINE) = LINE .ED"
+/*--- PARSE OUT THE DSN -------------------------------*/
+    DSNCOL=INDEX(THELINE,'DSN=')
+        IF DEBUG='Y' THEN SAY 'DSNCOL='DSNCOL
+    IF DSNCOL=0 THEN
+       DO  /* DSNCOL=0  */
+       "ISPEXEC SETMSG MSG(TGSY013)"
+       "ISREDIT RESET LABEL" /* ERASE .BR OR .ED LINE COMMAND */
+       EXIT 8
+       END /* DSNCOL=0  */
+    RESTOFLN=LENGTH(THELINE)-(DSNCOL-1)
+        IF DEBUG='Y' THEN SAY 'RESTOFLN='RESTOFLN
+        IF DEBUG='Y' THEN SAY 'THELINE='THELINE
+        IF DEBUG='Y' THEN SAY 'DSNCOL='DSNCOL',RESTOFLN='RESTOFLN
+    TERMCHBL=0
+    TERMCHBL=INDEX(SUBSTR(THELINE,DSNCOL,RESTOFLN),' ')
+       IF DEBUG='Y' THEN SAY 'TERMCHBL='TERMCHBL
+    TERMCHCO=0
+    TERMCHCO=INDEX(SUBSTR(THELINE,DSNCOL,RESTOFLN),',')
+       IF DEBUG='Y' THEN SAY 'TERMCHCO='TERMCHCO
+    IF TERMCHBL=0 & TERMCHCO=0 THEN
+       DO  /* TERMCHAR=0 */
+       "ISPEXEC SETMSG MSG(TGSY013)"
+       "ISREDIT RESET LABEL" /* ERASE .BR OR .ED LINE COMMAND */
+       EXIT 8
+       END /* TERMCHAR=0 */
+    ELSE
+       DO  /* NOT (TERMCHBL=0 & TERMCHCO=0) */
+       /* ----- USE FIRST TERMINATOR CHARACTER FOUND --------*/
+       TERMCHAR=0
+       IF TERMCHBL>TERMCHCO & TERMCHCO>=1 THEN TERMCHAR=TERMCHCO+DSNCOL
+       ELSE
+       IF TERMCHBL>TERMCHCO               THEN TERMCHAR=TERMCHBL+DSNCOL
+       ELSE
+       IF TERMCHBL<TERMCHCO & TERMCHBL>=1 THEN TERMCHAR=TERMCHBL+DSNCOL
+       ELSE
+       IF TERMCHBL<TERMCHCO               THEN TERMCHAR=TERMCHCO+DSNCOL
+       END /* NOT (TERMCHBL=0 & TERMCHCO=0) */
+    IF DEBUG='Y' THEN SAY 'TERMCHAR='TERMCHAR
+    DSNLEN=TERMCHAR-(DSNCOL+4)-1
+           IF DEBUG='Y' THEN SAY 'DSNLEN='DSNLEN
+    DSN=SUBSTR(THELINE,DSNCOL+4,DSNLEN)
+           /* REPLACE &VAR WITH ACUTAL VALUE */
+          IF SUBSTR(DSN,1,16)='&CATID..&SYSID..' & ODRFND = "Y"
+          THEN DO
+             IF DEBUG='Y' THEN SAY 'HLQ ' HLQ
+             XDSN=SUBSTR(DSN,16,LENGTH(DSN)-15)
+             DSN=HLQ||XDSN
+          END
+          ELSE IF SUBSTR(DSN,1,8)='&CATID..' & ORDFND = "Y"
+          THEN DO
+             IF DEBUG='Y' THEN SAY 'HLQ ' HLQ
+             XDSN=SUBSTR(DSN,8,LENGTH(DSN)-7)
+             DSN=HLQ||XDSN
+          END
+          IF DEBUG='Y' THEN SAY 'XDSN ' XDSN
+          IF DEBUG='Y' THEN SAY 'DSN ' DSN
+    /*---- MAKE SURE NO '&'S (TEMP DSN OR INSIDE A JCL PROC) ---- */
+    AMPER=INDEX(DSN,'&')
+    IF AMPER>0 THEN
+       DO  /* TEMP DSN OR UNRESOLVED PROC SYMBOLIC FOUND */
+       "ISPEXEC SETMSG MSG(TGSY016)"
+       "ISREDIT RESET LABEL" /* ERASE .BR OR .ED LINE COMMAND */
+       EXIT 0
+       END /* TEMP DSN OR UNRESOLVED PROC SYMBOLIC FOUND */
+/*--- VERIFY THAT THE DSN EXISTS ------------------------*/
+    QDSN="'"DSN"'"
+          IF DEBUG='Y' THEN SAY 'DSN=|'DSN'|'
+    IF DSNLEN>=1 & DSNLEN<44 THEN
+          DO  /* DSNLEN>0 & DSNLEN<44 */
+          CKDSN=SYSDSN(DSN)
+          IF CKDSN='OK' THEN
+             DO  /* CKDSN='OK' */
+             LDSIRC=LISTDSI(QDSN) DIRECTORY
+             IF DEBUG='Y' THEN SAY 'SYSDSORG='SYSDSORG
+/*--- CAN'T BROWSE VSAM ---------------------------------*/
+             IF SYSDSORG='VS' THEN
+                DO  /* SYSDSORG='VS' */
+                "ISPEXEC SETMSG MSG(TGSY015)"
+                "ISREDIT RESET LABEL" /* ERASE .BR OR .ED LINE CMD */
+                EXIT 0
+                END /* SYSDSORG='VS' */
+/*--- CAN'T BROWSE OR EDIT IF EMPTY ---------------------*/
+             IF DEBUG='Y' THEN
+               DO
+                  SAY 'SYSUSED='SYSUSED
+                  SAY 'SYSUSEDPAGES='SYSUSEDPAGES
+               END
+             IF SYSUSED < 1 THEN
+               IF SYSUSEDPAGES > 5 THEN  /* EMPTY PDSE USES 5 PAGES */
+                 NOP
+             ELSE
+                DO  /* SYSUSED < 1 */
+                "ISPEXEC SETMSG MSG(TGSY017)"
+                "ISREDIT RESET LABEL" /* ERASE .BR OR .ED LINE CMD */
+                EXIT 0
+                END /* EMPTY FILE  */
+/*--- HERE'S THE ACTUAL BROWSE --------------------------*/
+             IF EDORBR='BR' THEN
+                DO  /* EDORBR='BR' */
+                "ISPEXEC SETMSG MSG(TGSY011)"
+                "ISPEXEC BROWSE DATASET("DSN")"
+                END /* EDORBR='BR' */
+             IF EDORBR='ED' THEN
+                DO  /* EDORBR='ED' */
+/*--- CHECK IT'S NOT TOO BIG IF THEY WANT EDIT ----------*/
+                IF DEBUG='Y' THEN SAY 'LDSIRC='LDSIRC,
+                                      ',SYSUNITS='SYSUNITS,
+                                      ',SYSUSED='SYSUSED
+                IF SUBSTR(SYSUNITS,1,3)='CYL' & SYSUSED>5 THEN BIG='Y'
+                IF SUBSTR(SYSUNITS,1,3)='TRA' & SYSUSED>90 THEN BIG='Y'
+                IF SUBSTR(SYSUNITS,1,3)='BLO' & SYSUSED>500 THEN BIG='Y'
+/*--- IF IT'S PARTITIONED, IT CAN BE BIG.      ----------*/
+                IF BIG='Y' & SYSDSORG\='PO' THEN
+                   DO  /* BIG='Y' */
+                   SAY 'DSN 'QDSN' HAS 'SYSUSED' 'SYSUNITS'S. '
+                   SAY 'EDIT MAY CAUSE A LONG WAIT. BROWSE MAY BE'
+                   SAY 'A BETTER CHOICE. CONTINUE (Y/N)?'
+                   PULL ANSWER
+                   UPPER(ANSWER)
+                   IF ANSWER\='Y' THEN
+                      DO
+                      "ISREDIT RESET LABEL" /* ERASE .BR/.ED LINE CMD */
+                      EXIT 0
+                      END
+                   ELSE
+                     DO   /* ANSWER='Y' */
+                     "ISPEXEC SETMSG MSG(TGSY011)"
+                     "ISPEXEC EDIT DATASET("DSN")"
+                     END  /* ANSWER='Y' */
+                   END /* BIG='Y' */
+                   ELSE
+                     DO   /* BIG\='Y' */
+                     "ISPEXEC SETMSG MSG(TGSY011)"
+                     "ISPEXEC EDIT DATASET("DSN")"
+                     END  /* BIG\='Y' */
+                END /* EDORBR='ED' */
+             END /* IF CKDSN='OK' */
+          ELSE SAY "LOOK: "DSN" : "CKDSN
+          END /* DSNLEN > 0 AND < 44 */
+       ELSE
+          DO  /* DSNLEN NOT (> 0 AND < 44) */
+          "ISPEXEC SETMSG MSG(TGSY014)"
+          "ISREDIT RESET LABEL" /* ERASE .BR/.ED LINE CMD */
+          EXIT 8
+          END /* DSNLEN NOT (> 0 AND < 44) */
+IF DEBUG="Y" THEN SAY "THELINE="THELINE
+/* SAMPLE JCL //SYSUT1 DD DSN=VNRFP.ARCHOUT.LIB */
+"ISREDIT RESET LABEL" /* ERASE .BR OR .ED LINE COMMAND */
+"ISREDIT MEND"
